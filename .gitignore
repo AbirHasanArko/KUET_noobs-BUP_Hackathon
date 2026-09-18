@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿__pycache__/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -14,9 +13,3 @@ ENV/
 problem_statement.txt
 clean_problem_statement.txt
 test_solver.py
-=======
-.env
-__pycache__/
-venv/
-*.pyc
->>>>>>> 2c945e25536ab62cc45b9fe8ca882c096e247ed7
