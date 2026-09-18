@@ -180,10 +180,26 @@
             btnText.innerText = "Running Optimizer...";
             btnSpinner.classList.remove('hidden');
 
+            const hoursList = [];
+            for (let i = 0; i < 24; i++) {
+                hoursList.push({
+                    hour: i,
+                    demand_kwh: baseDemand[i],
+                    solar_kwh: baseSolar[i],
+                    tariff_bdt_per_kwh: baseTariff[i]
+                });
+            }
+
             const payload = {
                 "scenario_id": "demo-ui-01",
-                "battery": { "capacity_kwh": 500, "max_charge_rate_kw": 100, "max_discharge_rate_kw": 100, "initial_energy_kwh": 100 },
-                "energy_data": { "solar_forecast_kwh": baseSolar, "demand_forecast_kwh": baseDemand, "grid_tariff_bdt": baseTariff },
+                "battery": { 
+                    "capacity_kwh": 500, 
+                    "max_charge_kwh_per_hour": 100, 
+                    "max_discharge_kwh_per_hour": 100, 
+                    "initial_energy_kwh": 100,
+                    "minimum_energy_kwh": 0
+                },
+                "hours": hoursList,
                 "operator_notes": notes
             };
 
@@ -194,7 +210,11 @@
                     body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) throw new Error("API Error");
+                if (!response.ok) {
+                    const errDetail = await response.text();
+                    console.error("API Error Response:", errDetail);
+                    throw new Error("API Error: " + response.status);
+                }
 
                 const data = await response.json();
                 updateUI(data);
@@ -228,10 +248,10 @@
 
             // Update Chart
             const hourly = data.hourly_plan;
-            const gridImport = hourly.map(h => h.grid_import_kwh);
-            const battCharge = hourly.map(h => h.battery_charge_kwh);
-            const battDischarge = hourly.map(h => h.battery_discharge_kwh);
-            const battState = hourly.map(h => h.battery_state_kwh);
+            const gridImport = hourly.map(h => h.grid_kwh);
+            const battCharge = hourly.map(h => h.battery_action === 'charge' ? h.battery_kwh : 0);
+            const battDischarge = hourly.map(h => h.battery_action === 'discharge' ? h.battery_kwh : 0);
+            const battState = hourly.map(h => h.battery_energy_after_kwh);
 
             chartInstance.data.datasets = [
                 {
