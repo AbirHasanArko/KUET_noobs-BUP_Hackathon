@@ -1,0 +1,40 @@
+{
+  "scenario_id": "SAMPLE-01",
+  "operator_notes": [
+    "Facilities will wash the rooftop solar panels from noon until 2 PM. During cleaning, usable solar should be treated as roughly 25% of the forecast.",
+    "The sports office moved next month's registration deadline."
+  ],
+  "hours": [
+    {"hour": 0, "demand_kwh": 238.44, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 1, "demand_kwh": 219.04, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 2, "demand_kwh": 217.15, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 3, "demand_kwh": 237.96, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 4, "demand_kwh": 217.16, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 5, "demand_kwh": 230.12, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 6, "demand_kwh": 230.56, "solar_kwh": 68.32, "tariff_bdt_per_kwh": 4.16},
+    {"hour": 7, "demand_kwh": 246.33, "solar_kwh": 192.42, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 8, "demand_kwh": 241.97, "solar_kwh": 344.6, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 9, "demand_kwh": 245.54, "solar_kwh": 483.74, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 10, "demand_kwh": 241.28, "solar_kwh": 520.15, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 11, "demand_kwh": 235.34, "solar_kwh": 545.92, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 12, "demand_kwh": 216.71, "solar_kwh": 532.72, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 13, "demand_kwh": 230.41, "solar_kwh": 477.53, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 14, "demand_kwh": 211.75, "solar_kwh": 335.36, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 15, "demand_kwh": 222.75, "solar_kwh": 179.91, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 16, "demand_kwh": 225.46, "solar_kwh": 72.82, "tariff_bdt_per_kwh": 8.85},
+    {"hour": 17, "demand_kwh": 237.11, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 11.21},
+    {"hour": 18, "demand_kwh": 225.33, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 11.21},
+    {"hour": 19, "demand_kwh": 238.82, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 11.21},
+    {"hour": 20, "demand_kwh": 240.23, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 11.21},
+    {"hour": 21, "demand_kwh": 228.61, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 11.21},
+    {"hour": 22, "demand_kwh": 232.09, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 11.21},
+    {"hour": 23, "demand_kwh": 218.42, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 4.16}
+  ],
+  "battery": {
+    "capacity_kwh": 500,
+    "max_charge_kwh_per_hour": 100,
+    "max_discharge_kwh_per_hour": 100,
+    "initial_energy_kwh": 100,
+    "minimum_energy_kwh": 0
+  }
+}
