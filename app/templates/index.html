@@ -239,11 +239,7 @@
             // Update LLM Extracted JSON
             const llmCard = document.getElementById('llmExtractionCard');
             llmCard.classList.remove('hidden');
-            const llmLog = data.directive_interpretation.map(d => ({
-                applies: d.applies,
-                type: d.directive_type,
-                adj: d.structured_adjustment
-            }));
+            const llmLog = data.directive_interpretation;
             document.getElementById('llmJson').innerText = JSON.stringify(llmLog, null, 2);
 
             // Update Chart
