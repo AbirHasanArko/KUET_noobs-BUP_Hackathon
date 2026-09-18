@@ -13,9 +13,3 @@ ENV/
 problem_statement.txt
 clean_problem_statement.txt
 test_solver.py
-
-# Unneeded files
-*.pdf
-BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json
-run_tests.py
-test_api.py

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+﻿FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt httpx
 
 # Copy application source code
 COPY app/ ./app/
+COPY BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json .
+COPY run_tests.py .
+
 EXPOSE 8000
 
 # Run uvicorn server binding to 0.0.0.0
