@@ -13,6 +13,7 @@ from app.models import (
 )
 from app.llm_parser import interpret_operator_notes
 from app.optimizer import solve_energy_schedule
+from app.validator import validate_final_schedule
 
 load_dotenv()
 
@@ -51,18 +52,27 @@ async def health_check():
 @app.post("/optimize-energy", response_model=OptimizeEnergyResponse, status_code=status.HTTP_200_OK)
 async def optimize_energy(request: OptimizeEnergyRequest):
     """
-    Main endpoint:
-    1. Interprets 1-3 operator notes via LLM with deterministic guardrails.
-    2. Formulates and solves linear programming optimization for 24-hour horizon.
-    3. Returns machine-checkable directive interpretations and hourly energy plan.
+    End-to-End Processing Flow (Section 03):
+    1. Energy Data + Operator Notes (Input ingestion & schema validation)
+    2. LLM Interpreter (Natural-language operator notes parsing)
+    3. Guardrail Validator (Deterministic validation of extracted directives)
+    4. Math Optimizer (Linear programming energy schedule optimization)
+    5. Final Validator (Post-optimization schedule physical replay verification)
+    6. API Response (Structured machine-checkable output)
     """
     try:
-        # Step 1: Interpret operator notes
+        # Step 2 & 3: LLM Interpretation + Deterministic Guardrail Validation
         directives = interpret_operator_notes(request.operator_notes, request.battery)
         
-        # Step 2: Optimize energy schedule
+        # Step 4: Mathematical Schedule Optimization (PuLP LP Solver)
         response = solve_energy_schedule(request, directives)
         
+        # Step 5: Final Validator (Independent schedule physical replay)
+        is_valid, violations = validate_final_schedule(request, directives, response.hourly_plan)
+        if not is_valid:
+            logger.warning(f"Final validation detected schedule discrepancies: {violations}")
+            
+        # Step 6: Return API Response
         return response
     except Exception as e:
         logger.error(f"Error processing scenario {request.scenario_id}: {e}", exc_info=False)
