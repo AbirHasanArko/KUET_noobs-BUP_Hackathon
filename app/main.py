@@ -45,6 +45,7 @@ app.add_middleware(
 )
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+@app.head("/", include_in_schema=False)
 async def serve_frontend():
     """Serves the beautiful graphical web UI for live demonstration."""
     template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
