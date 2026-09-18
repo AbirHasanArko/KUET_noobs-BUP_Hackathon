@@ -245,7 +245,7 @@ curl http://localhost:8000/health
 | `GEMINI_API_KEY` | *(Optional)* | Google Gemini API key for directive extraction |
 | `OPENAI_API_KEY` | *(Optional)* | OpenAI API key |
 | `GROQ_API_KEY` | *(Optional)* | Groq API key |
-| `LLM_MODEL` | `gemini-1.5-flash` | LLM model identifier |
+| `LLM_MODEL` | `gemini-2.0-flash-lite` | LLM model identifier |
 
 > **Offline / Fallback Guarantee**: If no API keys are provided or network issues occur, the built-in deterministic heuristic NLP interpreter ensures 100% availability, stability, and zero runtime crashes.
 
