@@ -1,4 +1,4 @@
-﻿# GridWise: LLM-Assisted Smart Campus Energy Optimization Service
+# GridWise: LLM-Assisted Smart Campus Energy Optimization Service
 
 **BUP CSE Fest 2026 — Hackathon Online Preliminary Round**  
 **Team**: KUET_noobs  
@@ -16,30 +16,45 @@ The **GridWise Smart Campus Energy Optimization System** automates the end-to-en
 
 The service follows a three-stage decoupled pipeline:
 
+```mermaid
+graph TD
+    classDef input fill:#2D3748,stroke:#4FD1C5,stroke-width:3px,color:#fff,rx:10px,ry:10px;
+    classDef process fill:#2B6CB0,stroke:#63B3ED,stroke-width:3px,color:#fff,rx:10px,ry:10px;
+    classDef output fill:#276749,stroke:#68D391,stroke-width:3px,color:#fff,rx:10px,ry:10px;
+
+    A(["📝 Natural Language Operator Notes"]):::input --> B
+    B["🤖 1. LLM Directive Interpretation <br/> (Gemini / OpenAI / Fallback)"]:::process -->|Extracted Directives JSON| C
+    C["🛡️ 2. Deterministic Guardrails Layer <br/> (Type check, bounds, normalization)"]:::process -->|Validated Constraints| D
+    D["🧮 3. Mathematical LP Optimizer <br/> (PuLP / CBC Solver)"]:::process --> E
+    E(["📊 Machine-Checkable JSON Response <br/> (hourly_plan + cost totals)"]):::output
 ```
-[ Natural Language Operator Notes ]
-                │
-                ▼
-┌───────────────────────────────────────┐
-│ 1. LLM Directive Interpretation       │
-│    (Gemini / OpenAI / Groq / Fallback)│
-└──────────────────┬────────────────────┘
-                   │ Extracted Directives (JSON)
-                   ▼
-┌───────────────────────────────────────┐
-│ 2. Deterministic Guardrails Layer     │
-│    (Type check, bounds, normalization)│
-└──────────────────┬────────────────────┘
-                   │ Validated Constraints
-                   ▼
-┌───────────────────────────────────────┐
-│ 3. Mathematical LP Optimizer (PuLP)   │
-│    (CBC Solver, Cost Minimization)    │
-└──────────────────┬────────────────────┘
-                   │
-                   ▼
-[ Machine-Checkable JSON Response ]
-(directive_interpretation + 24-hour hourly_plan + cost totals)
+
+### Request Lifecycle Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant J as Judge Harness
+    participant API as FastAPI Server
+    participant Cache as TTLCache
+    participant LLM as Gemini AI (w/ Tenacity)
+    participant LP as PuLP / CBC Solver
+
+    J->>API: POST /optimize-energy
+    API->>Cache: Check hash(operator_notes)
+    alt Cache Hit
+        Cache-->>API: Return cached directives
+    else Cache Miss
+        API->>LLM: Send notes (w/ Few-Shot Prompts)
+        LLM-->>API: Return JSON Directives
+        API->>Cache: Store result
+    end
+    
+    API->>API: Apply Deterministic Guardrails
+    API->>LP: Build 24h Mathematical LP Model
+    LP-->>API: Return Optimal Hourly Dispatch
+    API->>API: Perfect Balance Sanitizer (Fix floats)
+    API-->>J: HTTP 200 OK (Schedule & Costs)
 ```
 
 1. **LLM Directive Interpretation**: Translates complex, paraphrased campus operator notes into structured directive objects. Supports Google Gemini, OpenAI, Groq, and custom OpenAI-compatible endpoints, along with an offline heuristic fallback engine.
