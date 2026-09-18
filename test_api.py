@@ -23,7 +23,7 @@ try:
     with urllib.request.urlopen(req, data=json_data) as response:
         result = json.loads(response.read().decode('utf-8'))
         
-        print("✅ SUCCESS! Server responded with:")
+        print("SUCCESS! Server responded with:")
         print(f"Total Cost (BDT): {result['total_cost_bdt']}")
         print(f"Peak Grid (kWh): {result['peak_grid_kwh']}")
         print(f"Plan Summary: {result['plan_summary']}")
@@ -35,5 +35,5 @@ try:
                 print(f"  Adjustment: {directive['structured_adjustment']}")
                 
 except Exception as e:
-    print(f"❌ ERROR: Failed to connect or received error from server. Details:\n{e}")
+    print(f"ERROR: Failed to connect or received error from server. Details:\n{e}")
     print("Make sure your server is running (uvicorn main:app --port 8000)")
