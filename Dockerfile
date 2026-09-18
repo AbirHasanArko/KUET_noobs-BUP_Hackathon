@@ -1,15 +1,29 @@
-FROM python:3.11-slim
+﻿FROM python:3.11-slim
 
-# Install system dependencies if required by PuLP or CBC
-RUN apt-get update && apt-get install -y coinor-cbc && rm -rf /var/lib/apt/lists/*
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    HOST=0.0.0.0
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install system dependencies for optimization solver (CBC solver is built into pulp)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    coinor-cbc \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+# Install python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt httpx
+
+# Copy application source code
+COPY app/ ./app/
+COPY BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json .
+COPY run_tests.py .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn server binding to 0.0.0.0
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
