@@ -1,0 +1,15 @@
+﻿__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+ENV/
+*.log
+.DS_Store
+.idea/
+.vscode/
+problem_statement.txt
+clean_problem_statement.txt
+test_solver.py
