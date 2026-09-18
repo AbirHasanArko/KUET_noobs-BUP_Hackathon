@@ -107,9 +107,40 @@ def run_all_tests():
         
         print(f"[PASS] {cid}: {label} | Cost: {comp_cost:.2f} BDT (Expected: {exp_cost:.2f} BDT)")
 
+    # 3. Edge Cases
+    print("-" * 60)
+    print("Testing Edge Cases & Guardrails...")
+    
+    # 3.1 Malformed request validation
+    r_bad = client.post("/optimize-energy", json={"scenario_id": "BAD-SCHEMA"})
+    assert r_bad.status_code == 422, f"Expected 422, got {r_bad.status_code}"
+    print("[PASS] Malformed schema properly rejected with HTTP 422")
+    
+    # 3.2 Single distractor note test
+    sample_hours = [{"hour": h, "demand_kwh": 100, "solar_kwh": 50, "tariff_bdt_per_kwh": 10} for h in range(24)]
+    sample_battery = {
+        "capacity_kwh": 300,
+        "initial_energy_kwh": 150,
+        "minimum_energy_kwh": 30,
+        "max_charge_kwh_per_hour": 50,
+        "max_discharge_kwh_per_hour": 50
+    }
+    r_edge = client.post("/optimize-energy", json={
+        "scenario_id": "EDGE-DISTRACTOR",
+        "operator_notes": ["The student affairs office has posted upcoming holiday hours."],
+        "hours": sample_hours,
+        "battery": sample_battery
+    })
+    assert r_edge.status_code == 200
+    edge_data = r_edge.json()
+    assert edge_data["directive_interpretation"][0]["directive_type"] == "no_op"
+    assert edge_data["directive_interpretation"][0]["applies"] is False
+    assert edge_data["directive_interpretation"][0]["structured_adjustment"] is None
+    print("[PASS] Single distractor correctly identified as no_op")
+    
     print("=" * 60)
     if all_passed:
-        print("ALL TESTS PASSED WITH 100% ACCURACY & FULL COMPLIANCE!")
+        print("ALL TESTS & EDGE CASES PASSED WITH 100% ACCURACY & ZERO CONFLICTS!")
     print("=" * 60)
 
 if __name__ == "__main__":

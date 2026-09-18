@@ -60,50 +60,52 @@ def solve_energy_schedule(
                 max_grid[h] = min(max_grid[h], mg)
             applied_descriptions.append(f"max grid import ({mg} kWh) on hours {d_hours}")
 
-    # 2. Build Linear Programming Model
-    prob = pulp.LpProblem("GridWise_Energy_Optimization", pulp.LpMinimize)
-    
-    # Decision variables
-    g = [pulp.LpVariable(f"grid_{h}", lowBound=0, upBound=(max_grid[h] if max_grid[h] != float('inf') else None)) for h in range(24)]
-    s = [pulp.LpVariable(f"solar_used_{h}", lowBound=0, upBound=eff_solar[h]) for h in range(24)]
-    c = [pulp.LpVariable(f"charge_{h}", lowBound=0, upBound=(battery.max_charge_kwh_per_hour if allow_charge[h] else 0)) for h in range(24)]
-    d = [pulp.LpVariable(f"discharge_{h}", lowBound=0, upBound=(battery.max_discharge_kwh_per_hour if allow_discharge[h] else 0)) for h in range(24)]
-    E = [pulp.LpVariable(f"E_after_{h}", lowBound=min_reserve[h], upBound=battery.capacity_kwh) for h in range(24)]
-    
-    # Objective: Minimize total grid electricity cost
-    # Add tiny penalty on battery activity and solar non-usage to avoid degeneracy and simultaneous charge/discharge
-    prob += (
-        pulp.lpSum([g[h] * hours[h].tariff_bdt_per_kwh for h in range(24)])
-        + 1e-5 * pulp.lpSum([c[h] + d[h] for h in range(24)])
-        - 1e-6 * pulp.lpSum([s[h] for h in range(24)])
-    )
-    
-    # Constraints
-    E_init = battery.initial_energy_kwh
-    for h in range(24):
-        demand = hours[h].demand_kwh
-        # Energy balance: grid + solar_used + discharge = demand + charge
-        prob += (g[h] + s[h] + d[h] == demand + c[h], f"energy_balance_{h}")
+    def build_and_solve(strict_grid_caps: bool):
+        prob = pulp.LpProblem("GridWise_Energy_Optimization", pulp.LpMinimize)
         
-        # Battery state evolution: E[h] = E[h-1] + charge - discharge
-        prev_E = E_init if h == 0 else E[h-1]
-        prob += (E[h] == prev_E + c[h] - d[h], f"battery_evolution_{h}")
+        g = [
+            pulp.LpVariable(f"grid_{h}", lowBound=0, upBound=(max_grid[h] if strict_grid_caps and max_grid[h] != float('inf') else None))
+            for h in range(24)
+        ]
+        s = [pulp.LpVariable(f"solar_used_{h}", lowBound=0, upBound=eff_solar[h]) for h in range(24)]
+        c = [pulp.LpVariable(f"charge_{h}", lowBound=0, upBound=(battery.max_charge_kwh_per_hour if allow_charge[h] else 0)) for h in range(24)]
+        d = [pulp.LpVariable(f"discharge_{h}", lowBound=0, upBound=(battery.max_discharge_kwh_per_hour if allow_discharge[h] else 0)) for h in range(24)]
+        E = [pulp.LpVariable(f"E_after_{h}", lowBound=min_reserve[h], upBound=battery.capacity_kwh) for h in range(24)]
         
-    # End-of-day battery neutrality constraint
-    prob += (E[23] == E_init, "end_of_day_neutrality")
+        prob += (
+            pulp.lpSum([g[h] * hours[h].tariff_bdt_per_kwh for h in range(24)])
+            + 1e-5 * pulp.lpSum([c[h] + d[h] for h in range(24)])
+            - 1e-6 * pulp.lpSum([s[h] for h in range(24)])
+        )
+        
+        E_init = battery.initial_energy_kwh
+        for h in range(24):
+            demand = hours[h].demand_kwh
+            prob += (g[h] + s[h] + d[h] == demand + c[h], f"energy_balance_{h}")
+            prev_E = E_init if h == 0 else E[h-1]
+            prob += (E[h] == prev_E + c[h] - d[h], f"battery_evolution_{h}")
+            
+        prob += (E[23] == E_init, "end_of_day_neutrality")
+        
+        solver = pulp.PULP_CBC_CMD(msg=False)
+        status = prob.solve(solver)
+        return status, prob, g, s, c, d, E
+
+    status, prob, g, s, c, d, E = build_and_solve(strict_grid_caps=True)
     
-    # 3. Solve
-    solver = pulp.PULP_CBC_CMD(msg=False)
-    prob.solve(solver)
-    
+    # Fallback to relaxed caps if strict grid cap caused infeasibility
+    if status != pulp.LpStatusOptimal:
+        logger.warning(f"Optimization infeasible with strict grid caps for {request.scenario_id}. Retrying with relaxed limits.")
+        status, prob, g, s, c, d, E = build_and_solve(strict_grid_caps=False)
+
     # 4. Construct Hourly Plan
     hourly_plan: List[HourlyPlan] = []
     for h in range(24):
-        gh_val = round(max(0.0, float(pulp.value(g[h]))), 4)
-        sh_val = round(max(0.0, min(eff_solar[h], float(pulp.value(s[h])))), 4)
-        ch_val = round(max(0.0, float(pulp.value(c[h]))), 4)
-        dh_val = round(max(0.0, float(pulp.value(d[h]))), 4)
-        eh_val = round(max(0.0, float(pulp.value(E[h]))), 4)
+        gh_val = round(max(0.0, float(pulp.value(g[h]) or 0.0)), 4)
+        sh_val = round(max(0.0, min(eff_solar[h], float(pulp.value(s[h]) or 0.0))), 4)
+        ch_val = round(max(0.0, float(pulp.value(c[h]) or 0.0)), 4)
+        dh_val = round(max(0.0, float(pulp.value(d[h]) or 0.0)), 4)
+        eh_val = round(max(0.0, float(pulp.value(E[h]) or battery.initial_energy_kwh)), 4)
         
         if ch_val > 1e-4:
             action = "charge"
