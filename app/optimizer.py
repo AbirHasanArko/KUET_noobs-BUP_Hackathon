@@ -60,28 +60,35 @@ def solve_energy_schedule(
                 max_grid[h] = min(max_grid[h], mg)
             applied_descriptions.append(f"max grid import ({mg} kWh) on hours {d_hours}")
 
-    def build_and_solve(strict_grid_caps: bool):
+    def build_and_solve():
         prob = pulp.LpProblem("GridWise_Energy_Optimization", pulp.LpMinimize)
         
-        g = [
-            pulp.LpVariable(f"grid_{h}", lowBound=0, upBound=(max_grid[h] if strict_grid_caps and max_grid[h] != float('inf') else None))
-            for h in range(24)
-        ]
+        g = [pulp.LpVariable(f"grid_{h}", lowBound=0) for h in range(24)]
+        # Slack variables for exceeding grid caps (soft constraints)
+        g_excess = [pulp.LpVariable(f"grid_excess_{h}", lowBound=0) for h in range(24)]
+        
         s = [pulp.LpVariable(f"solar_used_{h}", lowBound=0, upBound=eff_solar[h]) for h in range(24)]
         c = [pulp.LpVariable(f"charge_{h}", lowBound=0, upBound=(battery.max_charge_kwh_per_hour if allow_charge[h] else 0)) for h in range(24)]
         d = [pulp.LpVariable(f"discharge_{h}", lowBound=0, upBound=(battery.max_discharge_kwh_per_hour if allow_discharge[h] else 0)) for h in range(24)]
         E = [pulp.LpVariable(f"E_after_{h}", lowBound=min_reserve[h], upBound=battery.capacity_kwh) for h in range(24)]
         
+        # Massive penalty for exceeding grid caps (10,000 BDT per kWh) ensures it only violates if physically impossible
         prob += (
             pulp.lpSum([g[h] * hours[h].tariff_bdt_per_kwh for h in range(24)])
             + 1e-5 * pulp.lpSum([c[h] + d[h] for h in range(24)])
             - 1e-6 * pulp.lpSum([s[h] for h in range(24)])
+            + 10000 * pulp.lpSum([g_excess[h] for h in range(24)])
         )
         
         E_init = battery.initial_energy_kwh
         for h in range(24):
             demand = hours[h].demand_kwh
             prob += (g[h] + s[h] + d[h] == demand + c[h], f"energy_balance_{h}")
+            
+            # Enforce max grid if specified
+            if max_grid[h] != float('inf'):
+                prob += (g[h] - max_grid[h] <= g_excess[h], f"grid_cap_penalty_{h}")
+                
             prev_E = E_init if h == 0 else E[h-1]
             prob += (E[h] == prev_E + c[h] - d[h], f"battery_evolution_{h}")
             
@@ -91,12 +98,7 @@ def solve_energy_schedule(
         status = prob.solve(solver)
         return status, prob, g, s, c, d, E
 
-    status, prob, g, s, c, d, E = build_and_solve(strict_grid_caps=True)
-    
-    # Fallback to relaxed caps if strict grid cap caused infeasibility
-    if status != pulp.LpStatusOptimal:
-        logger.warning(f"Optimization infeasible with strict grid caps for {request.scenario_id}. Retrying with relaxed limits.")
-        status, prob, g, s, c, d, E = build_and_solve(strict_grid_caps=False)
+    status, prob, g, s, c, d, E = build_and_solve()
 
     # 4. Construct Hourly Plan
     hourly_plan: List[HourlyPlan] = []
