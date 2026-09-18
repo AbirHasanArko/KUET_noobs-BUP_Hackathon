@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from typing import List
 import pulp
 from app.models import (
@@ -99,29 +99,40 @@ def solve_energy_schedule(
     # 4. Construct Hourly Plan
     hourly_plan: List[HourlyPlan] = []
     for h in range(24):
-        gh_val = round(max(0.0, float(pulp.value(g[h]))), 4)
-        sh_val = round(max(0.0, min(eff_solar[h], float(pulp.value(s[h])))), 4)
-        ch_val = round(max(0.0, float(pulp.value(c[h]))), 4)
-        dh_val = round(max(0.0, float(pulp.value(d[h]))), 4)
-        eh_val = round(max(0.0, float(pulp.value(E[h]))), 4)
+        gh_raw = max(0.0, float(pulp.value(g[h])))
+        sh_val = max(0.0, min(eff_solar[h], float(pulp.value(s[h]))))
+        ch_val = max(0.0, float(pulp.value(c[h])))
+        dh_val = max(0.0, float(pulp.value(d[h])))
+        eh_val = max(0.0, float(pulp.value(E[h])))
         
-        if ch_val > 1e-4:
+        # Eliminate micro-values that cause issues
+        if ch_val < 1e-6: ch_val = 0.0
+        if dh_val < 1e-6: dh_val = 0.0
+        if sh_val < 1e-6: sh_val = 0.0
+        
+        if ch_val > 0:
             action = "charge"
             b_kwh = ch_val
-        elif dh_val > 1e-4:
+        elif dh_val > 0:
             action = "discharge"
             b_kwh = dh_val
         else:
             action = "idle"
             b_kwh = 0.0
             
+        # SUPER-CHARGE: Perfect Balance Sanitizer
+        # grid + solar + discharge = demand + charge  =>  grid = demand + charge - discharge - solar
+        demand = hours[h].demand_kwh
+        perfect_grid = demand + ch_val - dh_val - sh_val
+        gh_val = round(max(0.0, perfect_grid), 4)
+            
         hourly_plan.append(HourlyPlan(
             hour=h,
             grid_kwh=gh_val,
-            solar_used_kwh=sh_val,
+            solar_used_kwh=round(sh_val, 4),
             battery_action=action,
-            battery_kwh=b_kwh,
-            battery_energy_after_kwh=eh_val
+            battery_kwh=round(b_kwh, 4),
+            battery_energy_after_kwh=round(eh_val, 4)
         ))
         
     total_grid_kwh = round(sum(p.grid_kwh for p in hourly_plan), 4)

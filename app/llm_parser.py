@@ -1,9 +1,12 @@
-﻿import os
+import os
 import json
 import re
 import logging
 from typing import List, Dict, Any, Optional
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential
+from cachetools import cached, TTLCache
+import hashlib
 from app.models import BatteryConfig, DirectiveInterpretation
 from app.guardrails import validate_and_guardrail_directives
 
@@ -46,6 +49,29 @@ Return ONLY a valid JSON object with the key "directives" containing an array of
       "directive_type": "solar_reduction",
       "structured_adjustment": {"hours": [12, 13], "factor": 0.25},
       "explanation": "Short explanation of the interpretation."
+    }
+  ]
+}
+
+Examples:
+Input:
+["The PV output will drop to 20% between 13:00 and 15:00", "The cafeteria menu changes tomorrow."]
+Output:
+{
+  "directives": [
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "solar_reduction",
+      "structured_adjustment": {"hours": [13, 14], "factor": 0.2},
+      "explanation": "Solar is reduced to 20% during 13:00-15:00."
+    },
+    {
+      "note_index": 1,
+      "applies": false,
+      "directive_type": "no_op",
+      "structured_adjustment": null,
+      "explanation": "Cafeteria menu is irrelevant."
     }
   ]
 }
@@ -219,6 +245,7 @@ def fallback_heuristic_parse(note: str, note_idx: int, capacity_kwh: float) -> D
         "explanation": "This note does not affect today's 24-hour energy schedule."
     }
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=5))
 def call_gemini_api(notes: List[str], capacity_kwh: float, api_key: str, model_name: str = "gemini-1.5-flash") -> Optional[List[Dict[str, Any]]]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
@@ -254,6 +281,7 @@ Please interpret each note according to the instructions and return valid JSON."
                 return parsed
     return None
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=5))
 def call_openai_compatible_api(notes: List[str], capacity_kwh: float, api_key: str, base_url: str, model_name: str) -> Optional[List[Dict[str, Any]]]:
     url = f"{base_url.rstrip('/')}/chat/completions"
     headers = {
@@ -288,6 +316,12 @@ Please interpret each note according to the instructions and return valid JSON."
                 return parsed
     return None
 
+_llm_cache = TTLCache(maxsize=100, ttl=3600)
+
+def hash_notes(operator_notes: List[str], battery: BatteryConfig) -> str:
+    return hashlib.md5(json.dumps(operator_notes).encode('utf-8')).hexdigest()
+
+@cached(cache=_llm_cache, key=hash_notes)
 def interpret_operator_notes(
     operator_notes: List[str],
     battery: BatteryConfig
