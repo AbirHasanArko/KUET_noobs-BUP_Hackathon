@@ -255,7 +255,7 @@ curl http://localhost:8000/health
 
 For each hour $h \in \{0, 1, \dots, 23\}$:
 
-$$\min \sum_{h=0}^{23} \Big( g_h \cdot \text{tariff}_h \Big) + \epsilon \sum_{h=0}^{23} (c_h + d_h) - \delta \sum_{h=0}^{23} s_h$$
+$$\min \sum_{h=0}^{23} \Big( g_h \cdot \text{tariff}_h \Big) + \epsilon \sum_{h=0}^{23} (c_h + d_h) - \delta \sum_{h=0}^{23} s_h + \text{Penalty} \sum_{h=0}^{23} x^{\text{excess}}_h$$
 
 **Subject to:**
 1. **Energy Balance**: $g_h + s_h + d_h = \text{demand}_h + c_h \quad \forall h$
@@ -263,7 +263,7 @@ $$\min \sum_{h=0}^{23} \Big( g_h \cdot \text{tariff}_h \Big) + \epsilon \sum_{h=
 3. **Battery Evolution**: $E_h = E_{h-1} + c_h - d_h \quad (E_{-1} = E_{\text{init}})$
 4. **Reserve & Capacity Limits**: $E^{\text{min}}_h \le E_h \le C_{\text{max}} \quad \forall h$
 5. **Charge / Discharge Limits**: $0 \le c_h \le R_c \cdot \mathbb{I}(\text{charge allowed}_h)$, $0 \le d_h \le R_d \cdot \mathbb{I}(\text{discharge allowed}_h)$
-6. **Grid Cap**: $0 \le g_h \le G^{\text{max}}_h \quad \forall h$
+6. **Physics-Aware Grid Cap**: $g_h - G^{\text{max}}_h \le x^{\text{excess}}_h \quad \forall h$ (Slack variable $x^{\text{excess}}$ prevents infeasibility during mathematically impossible constraints)
 7. **End-of-Day Neutrality**: $E_{23} = E_{\text{init}}$
 
 ---
