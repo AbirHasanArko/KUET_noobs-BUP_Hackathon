@@ -342,7 +342,7 @@ def interpret_operator_notes(
     # 1. Try Gemini
     if gemini_key:
         try:
-            model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+            model = os.getenv("LLM_MODEL", "gemini-3.6-flash")
             raw_directives = call_gemini_api(operator_notes, battery.capacity_kwh, gemini_key, model)
         except Exception as e:
             logger.warning(f"Gemini API call failed: {e}")
